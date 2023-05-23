@@ -47,13 +47,36 @@ router.get("/items", async (req, res, next) => {
         const r_ = quantity_arr.reverse();
         const most_repeated = r_[0].key;
         const hierachy = await getCategoryHierachy(res, most_repeated);
+        const currencies = await fetch(currency())
+            .then(async res => res.json())
+            .catch(e => res.status(500).send("Ocurrió un error intentado realizar la petición."))
+
+        // Incluir la información de la moneda dentro del resultado de la petición
+        data.results = data.results.map(element => {
+            element["currency_id"] = currencies.filter(e => e.id == element["currency_id"])[0];
+            delete element["currency_id"]["description"]
+            return element;
+        })
+
         res.send({
             author: {
                 name: authHeaderN_,
                 lastname: authHeaderLN_
             },
             categories: hierachy,
-            items: data.results
+            items: data.results.map(r => ({
+                id: r.id,
+                title: r.title,
+                price: {
+                    currency: r.currency_id.symbol,
+                    amount: r.price,
+                    decimals: r.currency_id.price
+                },
+                picture: r.thumbnail,
+                condition: r.condition,
+                free_shipping: r.shipping.free_shipping,
+                city: r.seller_address.city.name
+            }))
         });
     } else {
         res.send({
